@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}유가정보 - 자동차 소음 이상 탐지{% endblock %}
+{% block body_class %}page-md{% endblock %}
+
+{% block content %}
+<style>
+
+/* 링크 색 살짝 줄이고 싶으면 */
+.oil-source a {
+    color: #ffffff;           /* 취향대로 */
+    text-decoration: underline;
+}
+.contact-info {
+    display: flex;
+    justify-content: center;
+}
+
+.contact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+/* 왼쪽 연료 뱃지 박스 */
+.fuel-badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+/* 각 연료별 색상 */
+.fuel-diesel { background: #05501a; }  /* 초록 */
+.fuel-lpg    { background: #a00000; }  /* 주황/빨강 */
+.fuel-h2     { background: #002eac; }  /* 파랑 */
+.fuel-cng    { background: #be800c; }  /* 갈색 */
+
+.fuel-text {
+    font-size: 15px;
+    color: #f5f7ff;
+}
+</style>
+<div class="content-section active" id="contact">
+    <div class="section-header-small">
+        <div class="small-logo">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}"
+                 alt="car diagnostics logo"
+                 class="small-logo-img">
+        </div>
+        <div class="small-brand">
+            <h3>Car_Anomaly Detection</h3>
+            <p>유가 정보</p>
+        </div>
+    </div>
+
+    <a class="back-btn" href="{{ url_for('main.index') }}">← Back to Menu</a>
+
+    <div class="section-header">
+        <h2 class="section-title">유가 정보</h2>
+        
+        <p class="section-subtitle">
+            전국 평균 유가 ({{ oil_data.date }})
+        </p>
+    </div>
+
+    {# 안전하게 길이 체크해서 인덱스 에러 안 나게 처리 #}
+    {% set p = oil_items or [] %}
+
+    <div class="contact-info">
+    <ul class="contact-list">
+        <li class="contact-item_u">
+            <div class="fuel-badge fuel-diesel">
+                <span>경유<br>(ℓ)</span>
+            </div>
+            <div class="fuel-text">
+                경유(ℓ) :
+                {{ p[0]['price'] if p|length > 0 else '-' }}
+            </div>
+        </li>
+
+        <li class="contact-item_u">
+            <div class="fuel-badge fuel-lpg">
+                <span>LPG<br>(ℓ)</span>
+            </div>
+            <div class="fuel-text">
+                LPG(ℓ) :
+                {{ p[1]['price'] if p|length > 1 else '-' }}
+            </div>
+        </li>
+
+        <li class="contact-item_u">
+            <div class="fuel-badge fuel-h2">
+                <span>수소<br>(kg)</span>
+            </div>
+            <div class="fuel-text">
+                수소(kg) :
+                {{ p[2]['price'] if p|length > 2 else '-' }}
+            </div>
+        </li>
+
+        <li class="contact-item_u">
+            <div class="fuel-badge fuel-cng">
+                <span>CNG<br>(m³)</span>
+            </div>
+            <div class="fuel-text">
+                CNG(㎥) :
+                {{ p[3]['price'] if p|length > 3 else '-' }}
+            </div>
+        </li>
+    </ul>
+</div>
+<p class="oil-source"
+   style="text-align: right; font-size: 14px; width: 680px; margin: 8px auto 0;">
+    출처 :
+    <a href="https://www.uga.go.kr/pbc/taoi/view"
+       target="_blank"
+       rel="noopener noreferrer">
+        https://www.uga.go.kr/pbc/taoi/view
+    </a>
+</p>
+</div>
+
+{% endblock %}

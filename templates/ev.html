@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}마이페이지 - 자동차 소음 이상 탐지{% endblock %}
+{% block body_class %}page-md{% endblock %}
+
+{% block content %}
+<style>
+    /* 공통 배지 스타일 */
+.status-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+/* 상태별 색상 */
+.status-pending {             /* 접수 */
+    background: rgba(255,180,0,0.15);
+    color: #ffd27a;
+}
+
+.status-checked {             /* 확인 */
+    background: rgba(0,200,100,0.18);
+    color: #7cf5b1;
+}
+
+.status-done {                /* 답변완료 */
+    background: rgba(0,160,255,0.18);
+    color: #8fd2ff;
+}
+</style>
+<div class="content-section active" id="mypage">
+    <div class="section-header-small">
+        <div class="small-logo">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}"
+                 class="small-logo-img"
+                 style="opacity: 0.7;">
+        </div>
+        <div class="small-brand">
+            <h3>Car_Anomaly Detection</h3>
+            <p>Mypage</p>
+        </div>
+    </div>
+
+    <a class="back-btn" href="{{ url_for('main.index') }}">← Back to Menu</a>
+
+    <div class="section-header">
+        <h2 class="section-title">마이페이지</h2>
+        <p class="section-subtitle">회원 정보를 확인하실 수 있는 페이지 입니다</p>
+    </div>
+
+    <div class="inquiry-card" style="max-width: 640px; margin: 0 auto;">
+
+    <!-- 마이페이지 기본 정보 카드 -->
+<div style="max-width: 760px; margin: 0 auto;">
+    <div
+        style="
+            position: relative;
+            padding: 24px 28px;
+            border-radius: 18px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.08);
+        "
+    >
+        <!-- 상단 중앙 제목 -->
+        <div style="text-align:center; margin-bottom:16px;">
+            <h3 style="font-size:18px; margin:0;">기본 정보</h3>
+        </div>
+
+        <!-- 이메일 / 이름 : 왼쪽 정렬, 층으로 나눔 -->
+         <div style="display:flex; flex-direction:column; align-items:flex-start; gap:4px;">
+            <p style="margin:0;">
+                <strong>이메일 :</strong>
+                {{ user_email or session.get('user_email') }}
+            </p>
+            <p style="margin:0;">
+                <strong>이름 / 닉네임 :</strong>
+                {{ user_name or session.get('user_name', '미설정') }}
+            </p>
+            <p style="margin:2px 0 0 0; font-size:13px; opacity:0.9;">
+                <strong>1:1 문의 횟수 :</strong>
+                {{ inquiry_count or 0 }}회
+            </p>
+        </div>
+
+        <hr style="border-color: rgba(255,255,255,0.08); margin:16px 0;">
+
+        {% if my_inquiries %}
+        
+<div style="width:100%; max-width:720px; margin-top:4px;">
+    <h4 style="font-size:14px; margin:0 0 8px 0;">나의 1:1 문의 내역</h4>
+    <ul style="list-style:none; padding:0; margin:0;">
+        {% for q in my_inquiries %}
+        <li style="
+            border:1px solid rgba(255,255,255,0.08);
+            border-radius:10px;
+            padding:8px 10px;
+            margin-bottom:6px;
+            font-size:13px;
+        ">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%;">
+                    {{ q.subject }}
+                </span>
+                {% set status = q.status or '접수' %}
+
+                {% if status == '접수' %}
+                    {% set badge_class = 'status-pending' %}
+                {% elif status == '확인' %}
+                    {% set badge_class = 'status-checked' %}
+                {% elif status == '답변완료' %}
+                    {% set badge_class = 'status-done' %}
+                {% else %}
+                    {% set badge_class = 'status-pending' %}
+                {% endif %}
+
+                <span class="status-badge {{ badge_class }}">
+                    {{ status }}
+                </span>
+            </div>
+
+            <div style="font-size:11px; opacity:0.7; margin-bottom:4px;">
+                {% if q.created_at %}
+                    {{ q.created_at.strftime('%Y-%m-%d %H:%M') }}
+                {% endif %}
+            </div>
+
+            <div style="margin-bottom:4px; color:#ddd;">
+                <strong>Q.</strong> {{ q.message }}
+            </div>
+
+            <div style="font-size:13px;">
+                {% if q.answer %}
+                    <strong>A.</strong> {{ q.answer }}
+                {% else %}
+                    <span style="opacity:0.8;">답변 준비 중입니다.</span>
+                {% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<p style="font-size:12px; color:#aaa; margin:4px 0 0 0;">
+    아직 등록된 1:1 문의가 없습니다.
+</p>
+{% endif %}
+
+<hr style="border-color: rgba(255,255,255,0.08); margin:16px 0 8px 0;">
+
+<!-- 설명 문구 -->
+<p style="font-size:13px; color:#aaa; margin:0;">
+    추후 여기에서 진단 기록, 즐겨찾는 정비소, 알림 설정 등을 볼 수 있도록 확장할 수 있습니다.
+</p>
+
+<!-- 오른쪽 하단 작은 로그아웃 버튼 -->
+<div style="position:absolute; right:20px; bottom:18px;">
+    <a href="{{ url_for('auth.logout') }}"
+       style="
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:6px 12px;
+            border-radius:999px;
+            background:rgba(255,91,122,0.12);
+            border:1px solid rgba(255,91,122,0.7);
+            font-size:12px;
+            color:#ff5b7a;
+            text-decoration:none;
+       ">
+         로그아웃
+    </a>
+</div>
+</div>
+</div>
+
+{% endblock %}

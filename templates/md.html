@@ -1,0 +1,729 @@
+{% extends "base.html" %}
+
+{% block title %}고장 탐지 - 자동차 소음 이상 탐지{% endblock %}
+{% block body_class %}page-md{% endblock %}
+
+{% block content %}
+<style>
+/* 기본은 정지 */
+.animated-logo {
+    animation-play-state: paused;
+}
+
+/* 시크릿 키 통과 후에만 실행 */
+body.secret-unlocked .animated-logo {
+    animation-play-state: running;
+}
+/* 전체 화면을 덮는 검은 가림막 */
+.secret-overlay {
+    position: fixed;
+    inset: 0;                       /* top/right/bottom/left: 0; */
+    background: rgba(2, 4, 12, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;                  /* 맨 앞에 */
+}
+
+/* 가운데 서브 창 */
+.secret-modal {
+    position: relative;
+    max-width: 540px;
+    width: 90%;
+    padding: 24px 24px 20px;
+    border-radius: 24px;
+    background: transparent;        /* 안쪽도 공백 느낌 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+/* 로고 이미지 */
+.secret-img {
+    max-width: 1400px;
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 입력 박스 영역 */
+.secret-input-wrap {
+    width: 100%;
+    text-align: center;
+    color: #f5f7ff;
+    font-size: 14px;
+}
+
+.secret-title {
+    margin-bottom: 8px;
+    color: #dce5ff;
+}
+
+.secret-input {
+    width: 100%;
+    max-width: 260px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(10, 14, 40, 0.9);
+    color: #f5f7ff;
+    outline: none;
+    font-size: 14px;
+}
+
+.secret-input:focus {
+    border-color: #00e5ff;
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+.secret-btn {
+    margin-top: 10px;
+    padding: 8px 26px;
+    border-radius: 999px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(90deg, #00e5ff, #7f5dff);
+    color: #020615;
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.6);
+}
+
+.secret-btn:hover {
+    transform: translateY(-1px);
+}
+
+.secret-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #ff6b6b;
+}
+
+/* 시각화 패널 전체 박스 */
+.md-viz-panel {
+    display: block;
+    width: 100%;
+    max-width: var(--md-content-width);
+    margin: 24px auto 0;   /* 가운데 정렬 */
+}
+
+/* 진단 결과 박스 */
+.md-result-box {
+    width: 100%;
+    max-width: var(--md-content-width);
+    margin: 24px auto 0;   /* 위 여백은 취향대로 */
+}
+/* ===== 진단 결과 박스 ===== */
+.md-result-box {
+    max-width: 950px;
+    margin: 24px auto 40px;
+    border-radius: 18px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.55),
+        0 0 24px rgba(255, 255, 255, 0.85);
+    padding: 18px 22px;
+    color: #f5f7ff;
+
+    /* 🔹 카드 자체를 2열 그리드로 */
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+/* 왼쪽 컬럼: 제목 + 텍스트 세로 배치 */
+.md-result-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.md-result-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.md-result-text {
+    font-size: 28px;
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+/* 오른쪽 F1 컬럼: 전체 높이 사용 */
+.md-result-f1-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;      /* 카드 높이 전체 */
+}
+
+.md-result-f1-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0);
+    text-align: center;
+}
+
+/* 그래프 박스를 남은 공간 전부 채우도록 */
+.md-result-f1-box {
+    flex: 1;
+    background: rgba(5, 10, 30, 0.9);
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+    display: flex;
+}
+
+.md-result-f1-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+}
+
+/* 모바일에서는 위아래로 분리 */
+@media (max-width: 768px) {
+    .md-result-box {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+
+/* ===== MD 시각화 패널 ===== */
+.md-viz-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;   /* 이미지 비율 유지 */
+    display: block;
+}
+
+.md-viz-panel {
+    margin: 24px auto 0;
+    max-width: 1000px;
+    width: 100%;
+    border-radius: 18px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.55),
+        0 0 24px rgba(255, 255, 255, 0.85);
+    overflow: hidden;
+    color: #f5f7ff;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.md-viz-panel.collapsed {
+    max-height: 48px;
+    opacity: 0.85;
+    overflow: hidden;
+}
+
+/* 헤더 영역 */
+.md-viz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-height: 10px;
+    padding: 18px 22px;
+    cursor: pointer;
+}
+
+.md-viz-pin {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    transform-origin: center;
+    transition: transform 0.25s ease, filter 0.25s ease;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.85));
+    margin-right: 8px;
+}
+
+.md-viz-panel.collapsed .md-viz-pin {
+    transform: rotate(-30deg);
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+
+.md-viz-center {
+    flex: 1;
+    text-align: center;
+}
+
+.md-viz-right {
+    white-space: nowrap;
+}
+
+.md-viz-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.md-viz-sub {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.md-viz-body {
+    padding: 10px 18px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 한 층에 그래프 하나씩 */
+.md-viz-row {
+    display: block;
+    margin-bottom: 14px;
+}
+
+.md-viz-block-full {
+    width: 100%;
+}
+
+.md-viz-block-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.md-viz-canvas-box {
+    background: rgba(5, 10, 30, 0.9);
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+    min-height: 240px;
+}
+
+/* 모바일에서도 한 층씩이므로 별도 변경 불필요 */
+</style>
+<!-- 🔒 비밀키 입력 오버레이 -->
+<div id="secret-overlay" class="secret-overlay">
+  <div class="secret-modal">
+    <img src="{{ url_for('static', filename='images/car_logo3.png') }}"
+         alt="secret gate"
+         class="secret-img">
+
+    <div class="secret-input-wrap">
+      <p class="secret-title">접속을 위한 비밀 키를 입력해 주세요.</p>
+      <input type="password"
+             id="secret-input"
+             class="secret-input"
+             placeholder="Secret key" />
+
+      <button type="button"
+              id="secret-submit"
+              class="secret-btn">
+        확인
+      </button>
+
+      <p id="secret-error" class="secret-error" style="display:none;">
+        비밀 키가 올바르지 않습니다.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="content-section active" id="introduction">
+    <div class="section-header-small">
+        <div class="small-logo2">
+            <img src="{{ url_for('static', filename='images/car_logo3.png') }}"
+                 alt="Engine Logo"
+                 class="header-engine-logo animated-logo">
+        </div>
+        <div class="small-brand">
+            <h3>Car_AnomCar_aly Detection</h3>
+            <p>diagnosis team</p>
+        </div>
+    </div>
+
+    <a class="back-btn" href="{{ url_for('main.index') }}">← Back to Menu</a>
+    
+    <!-- Hero Banner -->
+    <div class="intro-hero">
+        <div class="intro-hero-content">
+            <span class="intro-badge">Est.2025</span>
+            <h1 class="intro-headline">자동차<br><span>이상탐지</span></h1>
+            <p class="intro-subtext">
+                Provides outstanding analytical capabilities concentrated with cutting-edge AI technology
+            </p>         
+        </div>
+        <div class="intro-hero-visual">
+            <div class="intro-floating-card card-1">
+                <span class="card-icon">🛑</span>
+                <span class="card-text">braking state</span>
+            </div>
+            <div class="intro-floating-card card-2">
+                <span class="card-icon">🅿️</span>
+                <span class="card-text">idle state</span>
+            </div>
+            <div class="intro-floating-card card-3">
+                <span class="card-icon">🔑</span>
+                <span class="card-text">startup state</span>
+            </div>
+            <div class="intro-orb"></div>
+        </div>
+    </div>
+
+    <!-- Metrics Strip -->
+    <div class="intro-metrics">
+        <div class="metric-item">
+            <span class="metric-value" data-target="100">0</span>
+            <span class="metric-label">로딩상태</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-value" data-target="98">0</span>
+            <span class="metric-suffix">%</span>
+            <span class="metric-label">Credibility</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-value" data-target="3">0</span>
+            <span class="metric-label">진단 클래스</span>
+        </div>
+        <div class="metric-divider"></div>
+        <div class="metric-item">
+            <span class="metric-value">25/12/12</span>
+            <span class="metric-label">최적화 MD 갱신</span>
+        </div>
+    </div>
+
+    <!-- 상태 선택 + 업로드 -->
+    <div class="md-state-layout">
+        <!-- 상태 카드 -->
+        <div class="intro-values" id="state-cards">
+            <div class="value-card" data-state="braking">
+                <div class="value-number">01</div>
+                <h3>Braking State</h3>
+                <p>정차상태</p>
+            </div>
+            <div class="value-card" data-state="startup">
+                <div class="value-number">02</div>
+                <h3>Startup State</h3>
+                <p>시동상태</p>
+            </div>
+            <div class="value-card" data-state="idle">
+                <div class="value-number">03</div>
+                <h3>Idle State</h3>
+                <p>주행상태</p>
+            </div>
+        </div>
+
+        <!-- 업로드 박스 -->
+        <div class="md-upload-box">
+            <label for="md-audio-file" class="md-upload-label">
+                엔진 소리 파일(.wav)을 업로드해 주세요
+            </label>
+            <input type="file"
+                   id="md-audio-file"
+                   accept=".wav,audio/wav">
+            <p class="md-upload-help">
+                ※ 모델은 1초 길이의 .wav 데이터를 기준으로 동작합니다.
+            </p>
+        </div>
+    </div>
+
+    <!-- Start 버튼 + 시각화 패널 -->
+    <div style="margin-top:10px; text-align:center;">
+        <div class="intro-cta-group">
+            <button id="md-start-btn" class="intro-cta-primary">분석하기</button>
+        </div>
+
+        <div id="md-viz-panel" class="md-viz-panel collapsed">
+            <div class="md-viz-header" id="md-viz-header">
+                <!-- 왼쪽 핀 -->
+                <button type="button"
+                        class="md-viz-pin"
+                        id="md-viz-pin"
+                        aria-label="시각화 열기/닫기">
+                    📌
+                </button>
+
+                <!-- 가운데: 제목 + 설명 -->
+                <div class="md-viz-center">
+                    <div class="md-viz-title">VISUALIZATION</div>
+                    <div class="md-viz-sub">
+                        Waveform / Spectrogram / FFT magnitude 시각화 결과확인
+                    </div>
+                </div>
+
+                <!-- 오른쪽 안내 문구 -->
+                <div class="md-viz-right md-viz-sub">
+                    클릭해서 열고 닫기
+                </div>
+            </div>
+
+            <div class="md-viz-body">
+                <!-- 1층: Waveform -->
+                <div class="md-viz-row">
+                    <div class="md-viz-block-full">
+                        <div class="md-viz-block-title">Waveform (Time domain)</div>
+                        <div class="md-viz-canvas-box">
+                            <img id="md-img-waveform" class="md-viz-img" alt="Waveform">
+                        </div>
+                    </div>
+                </div>
+                <!-- 2층: Mel Spectrogram -->
+                <div class="md-viz-row">
+                    <div class="md-viz-block-full">
+                        <div class="md-viz-block-title">Spectrogram (Mel)</div>
+                        <div class="md-viz-canvas-box">
+                            <img id="md-img-mel" class="md-viz-img" alt="Mel spectrogram">
+                        </div>
+                    </div>
+                </div>
+                <!-- 3층: FFT -->
+                <div class="md-viz-row">
+                    <div class="md-viz-block-full">
+                        <div class="md-viz-block-title">FFT magnitude</div>
+                        <div class="md-viz-canvas-box">
+                            <img id="md-img-fft" class="md-viz-img" alt="FFT magnitude">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="md-result-box" class="md-result-box" style="display:none;">
+    <!-- 🔹 왼쪽 컬럼: 제목 + 텍스트 -->
+    <div class="md-result-left">
+        <h3 class="md-result-title">진단 결과</h3>
+        <div class="md-result-text-wrap">
+            <p id="md-result-text" class="md-result-text"></p>
+        </div>
+    </div>
+
+    <!-- 🔹 오른쪽 컬럼: F1 박스 (그래프 전체 높이) -->
+    <div class="md-result-f1-wrap">
+        <div class="md-result-f1-title">F1 score (클래스별)</div>
+        <div class="md-result-f1-box">
+            <img id="md-img-f1" class="md-result-f1-img" alt="F1 score">
+        </div>
+    </div>
+</div>
+
+    <!-- Tech Stack Preview -->
+    <div class="intro-tech">
+        <p class="tech-label">Technologies We Master</p>
+        <div class="tech-marquee">
+            <div class="tech-track">
+                <span class="tech-item">Python</span>
+                <span class="tech-item">Next.js</span>
+                <span class="tech-item">Node.js</span>
+                <span class="tech-item">PyTorch</span>
+                <span class="tech-item">TensorFlow</span>
+                <span class="tech-item">Mongodb</span>
+                <span class="tech-item">PyMySQL</span>
+                <span class="tech-item">Flask</span>
+                <span class="tech-item">VSCode</span>
+                <span class="tech-item">Jupyter Notebook/Lab</span>
+                <span class="tech-item">CNN</span>
+                <span class="tech-item">FFT</span>
+                <!-- 반복 -->
+                <span class="tech-item">Python</span>
+                <span class="tech-item">Next.js</span>
+                <span class="tech-item">Node.js</span>
+                <span class="tech-item">PyTorch</span>
+                <span class="tech-item">TensorFlow</span>
+                <span class="tech-item">Mongodb</span>
+                <span class="tech-item">PyMySQL</span>
+                <span class="tech-item">Flask</span>
+                <span class="tech-item">VSCode</span>
+                <span class="tech-item">Jupyter Notebook/Lab</span>
+                <span class="tech-item">CNN</span>
+                <span class="tech-item">FFT</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("secret-overlay");
+  const input   = document.getElementById("secret-input");
+  const submit  = document.getElementById("secret-submit");
+  const errorEl = document.getElementById("secret-error");
+
+  if (!overlay || !input || !submit) return;
+
+  // 🔑 원하는 비밀 키 값
+  const SECRET_KEY = "1234";
+
+  // 🔓 시크릿 통과 후 실행할 애니메이션들
+  let introStarted = false;
+  function startIntroAnimations() {
+    if (introStarted) return;
+    introStarted = true;
+
+    // 로고 애니메이션 풀기
+    document.body.classList.add("secret-unlocked");
+
+    // 숫자 올라가는 애니메이션 시작
+    if (typeof animateStats === "function") {
+      animateStats();
+    }
+  }
+
+  function tryUnlock() {
+    const value = input.value.trim();
+
+    if (value === SECRET_KEY) {
+      // 성공: 오버레이 숨기고 애니메이션 시작
+      overlay.style.display = "none";
+      startIntroAnimations();
+    } else {
+      // 실패: 에러 메시지 표시
+      errorEl.style.display = "block";
+    }
+  }
+
+  submit.addEventListener("click", tryUnlock);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      tryUnlock();
+    }
+  });
+
+  input.focus();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 페이지 진입 시 메트릭 애니메이션
+    // if (document.body.classList.contains('page-md')) {
+    //     if (typeof animateStats === 'function') {
+    //         animateStats();
+    //     }
+    // }
+
+    let selectedState = null;
+    let isRunning = false;
+
+    // ----- 상태 카드 선택 -----
+    document.querySelectorAll('#state-cards .value-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('#state-cards .value-card')
+                .forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            selectedState = card.dataset.state;  // braking / idle / startup
+        });
+    });
+
+    // ----- 시각화 패널 토글 -----
+    const mdVizPanel  = document.getElementById('md-viz-panel');
+    const mdVizHeader = document.getElementById('md-viz-header');
+    if (mdVizHeader && mdVizPanel) {
+        mdVizHeader.addEventListener('click', () => {
+            mdVizPanel.classList.toggle('collapsed');
+        });
+    }
+
+    // ----- 이미지 src 업데이트 -----
+    function updateMdImages(images) {
+        if (!images) return;
+        const ts = Date.now();  // 캐시 방지용 쿼리스트링
+
+        if (images.waveform) {
+            const el = document.getElementById('md-img-waveform');
+            if (el) el.src = images.waveform + '?t=' + ts;
+        }
+        if (images.mel) {
+            const el = document.getElementById('md-img-mel');
+            if (el) el.src = images.mel + '?t=' + ts;
+        }
+        if (images.fft) {
+            const el = document.getElementById('md-img-fft');
+            if (el) el.src = images.fft + '?t=' + ts;
+        }
+        if (images.f1) {
+            const el = document.getElementById('md-img-f1');
+            if (el) el.src = images.f1 + '?t=' + ts;
+        }
+
+        if (mdVizPanel) {
+            mdVizPanel.classList.remove('collapsed');
+        }
+    }
+
+    // ----- Start 버튼 → /md/predict 호출 -----
+    const startBtn  = document.getElementById('md-start-btn');
+    const fileInput = document.getElementById('md-audio-file');
+
+    if (startBtn) {
+        startBtn.addEventListener('click', async () => {
+            if (!selectedState) {
+                alert('상태(Braking/Idle/Startup) 중 하나를 선택해 주세요.');
+                return;
+            }
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                alert('.wav 파일을 선택해 주세요.');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append("state", selectedState);
+            fd.append("audio", fileInput.files[0]);
+
+            isRunning = true;
+
+            try {
+                const res = await fetch("/md/predict", {
+                    method: "POST",
+                    body: fd
+                });
+                const data = await res.json();
+
+                if (!isRunning) return;
+
+                if (data.ok) {
+                    const r = data.result;
+
+                    // 이미지 갱신
+                    if (r.images) {
+                        updateMdImages(r.images);
+                    }
+
+                    // 결과 텍스트 구성
+                    let msg = `상태: ${r.state}\n결과: ${r.label}`;
+                    if (typeof r.score === 'number') {
+                        msg += `\n점수(score): ${r.score.toFixed(3)}`;
+                    }
+
+                    const box    = document.getElementById('md-result-box');
+                    const textEl = document.getElementById('md-result-text');
+                    if (box && textEl) {
+                        textEl.textContent = msg;
+                        box.style.display = 'block';
+                    }
+                } else {
+                    alert("추론 실패: " + (data.error || 'unknown error'));
+                }
+            } catch (err) {
+                console.error(err);
+                if (isRunning) {
+                    alert("서버 에러가 발생했습니다.");
+                }
+            } finally {
+                isRunning = false;
+            }
+        });
+    }
+});
+
+</script>
+{% endblock %}

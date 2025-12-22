@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}자동차 소음 이상 탐지 - 메인{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block content %}
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen">
+        <div class="loader-ring"></div>
+        <div class="loading-text">Initializing Experience...</div>
+    </div>
+
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Grid Overlay -->
+    <div class="grid-overlay"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <div class="header" id="mainHeader">
+            <div class="wave-container">
+                <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-1" alt="">
+                <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-2" alt="">
+                <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-3" alt="">
+                <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-4" alt="">
+                <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-5" alt="">
+            </div>
+            <h1 class="brand-name">자동차 소음 이상 탐지</h1>
+            <p class="tagline">Digital Excellence Redefined</p>
+            
+        </div>
+
+<div class="menu-grid" id="menuGrid">
+    <a class="menu-item initial-load" href="{{ url_for('main.md_page') }}">
+        <div class="menu-badge">Md</div>
+        <div class="menu-title">고장 탐지</div>
+    </a>
+    <a class="menu-item initial-load" href="{{ url_for('main.em_page') }}">
+        <div class="menu-badge">Em</div>
+        <div class="menu-title">실시간</div>
+    </a>
+    <a class="menu-item initial-load" href="{{ url_for('main.ev_page') }}">
+        <div class="menu-badge">Mp</div>
+        <div class="menu-title">마이페이지</div>
+    </a>
+    <a class="menu-item initial-load" href="{{ url_for('main.cs_page') }}">
+        <div class="menu-badge">Cs</div>
+        <div class="menu-title">고객센터</div>
+    </a>
+    <a class="menu-item initial-load" href="{{ url_for('main.map_page') }}">
+        <div class="menu-badge">map</div>
+        <div class="menu-title">로드맵</div>
+    </a>
+    <a class="menu-item initial-load" href="{{ url_for('main.oi_page') }}">
+        <div class="menu-badge">Oi</div>
+        <div class="menu-title">유가정보</div>
+    </a>
+</div>
+<script>
+  // DOM 구조만 준비되면 바로 실행
+  document.addEventListener('DOMContentLoaded', function () {
+    const loading = document.querySelector('.loading-screen');
+    if (loading) {
+      loading.classList.add('hidden');
+    }
+  });
+</script>
+</body>
+{% endblock %}

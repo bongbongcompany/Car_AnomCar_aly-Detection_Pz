@@ -1,0 +1,76 @@
+{% block extra_scripts %}
+<script>
+let selectedState = null;
+let isRunning = false;
+
+// ----- 상태 카드 단일 선택 -----
+document.querySelectorAll('#state-cards .value-card').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('#state-cards .value-card')
+            .forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        selectedState = card.dataset.state; // braking / idle / startup
+    });
+});
+
+// 요소 캐싱
+const startBtn   = document.getElementById('md-start-btn');
+const stopBtn    = document.getElementById('md-stop-btn');
+const fileInput  = document.getElementById('audio-file');
+const resultBox  = document.getElementById('md-result-box');
+const resultText = document.getElementById('md-result-text');
+
+// ----- Start 버튼 -----
+startBtn.addEventListener('click', async () => {
+    if (!selectedState) {
+        alert('상태(Braking/Idle/Startup) 중 하나를 선택해 주세요.');
+        return;
+    }
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('.wav 파일을 선택해 주세요.');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append("state", selectedState);
+    fd.append("audio", fileInput.files[0]);
+
+    isRunning = true;
+
+    try {
+        const res = await fetch("/md/predict", {
+            method: "POST",
+            body: fd
+        });
+        const data = await res.json();
+
+        if (!isRunning) {
+            // Stop 누른 뒤면 결과 무시
+            return;
+        }
+
+        if (data.ok) {
+            const r = data.result;
+            // 결과 박스에 표시
+            resultText.textContent =
+                `상태: ${r.state} / 결과: ${r.label} / 점수: ${r.score.toFixed(3)}`;
+            resultBox.style.display = 'block';
+        } else {
+            alert("추론 실패: " + (data.error || 'unknown error'));
+        }
+    } catch (err) {
+        console.error(err);
+        if (isRunning) {
+            alert("서버 에러가 발생했습니다.");
+        }
+    } finally {
+        isRunning = false;
+    }
+});
+
+// ----- Stop 버튼 -----
+stopBtn.addEventListener('click', () => {
+    isRunning = false;
+});
+</script>
+{% endblock %}

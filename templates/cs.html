@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}고객센터 Q&A - 자동차 소음 이상 탐지{% endblock %}
+{% block body_class %}page-md{% endblock %}
+
+{% block content %}
+<div class="content-section active" id="testimonials">
+    <div class="section-header-small">
+        <div class="small-logo">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}"
+                 alt="car diagnostics logo"
+                 class="small-logo-img">
+        </div>
+        <div class="small-brand">
+            <h3>Car_Anomaly Detection</h3>
+            <p>고객센터</p>
+        </div>
+    </div>
+
+    <a class="back-btn" href="{{ url_for('main.index') }}">← Back to Menu</a>
+
+    <div class="section-header">
+        <h2 class="section-title">고객센터</h2>
+        <p class="section-subtitle">고객응대 · 진단 서비스 Q&amp;A</p>
+    </div>
+
+    <!-- 탭 영역 -->
+    <div class="tabs-container">
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab(this, 'faq-tab')">
+                자주 묻는 질문
+            </button>
+            <button class="tab-btn" onclick="switchTab(this, 'inquiry-tab')">
+                1대1 상담
+            </button>
+        </div>
+
+        <div class="tab-content">
+            <!-- ====== 탭 1: 자주 묻는 질문 ====== -->
+            <div class="tab-pane active" id="faq-tab">
+                <div class="testimonials-grid faq-grid">
+                    <!-- 1 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 자동차 진단 서비스 회원가입은 어떻게 하나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 우측 상단 <strong>회원가입</strong> 버튼을 클릭한 뒤,
+                            이메일 또는 소셜 계정(카카오, 네이버)으로 간편 가입하실 수 있습니다.
+                            가입 후 차량 정보를 등록하면 바로 진단 서비스를 이용할 수 있습니다.
+                        </p>
+                    </div>
+
+                    <!-- 2 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 아이디나 비밀번호를 잊어버렸습니다. 어떻게 해야 하나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 로그인 화면의 <strong>아이디 찾기 / 비밀번호 찾기</strong> 메뉴에서
+                            본인 인증 후 정보를 재설정하실 수 있습니다.
+                            등록된 이메일 또는 휴대전화 번호로 인증 코드가 전송됩니다.
+                        </p>
+                    </div>
+
+                    <!-- 3 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 아이디·비밀번호를 정확히 입력했는데도 로그인이 되지 않습니다.
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 먼저 <strong>대소문자와 공백</strong>을 확인해 주세요.
+                            여러 번 로그인에 실패한 경우 보안을 위해 계정이 잠길 수 있으며,
+                            이 경우 1대1 문의를 통해 계정 해제를 요청해 주시면 됩니다.
+                        </p>
+                    </div>
+
+                    <!-- 4 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 차량 OBD 장비와 앱은 어떻게 연동하나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 차량 OBD 단자에 제공된 단말을 연결한 후,
+                            앱 하단의 <strong>장비 연결</strong> 메뉴를 선택하면 됩니다.
+                            블루투스를 켜 둔 상태에서 안내에 따라 페어링하면
+                            차량 정보가 자동으로 등록되고 진단이 가능해집니다.
+                        </p>
+                    </div>
+
+                    <!-- 5 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 진단은 어떤 방식으로 진행되나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 엔진 사운드, 회전수, 온도 등 센서 데이터를 실시간으로 수집하여
+                            AI 이상 탐지 모델로 분석합니다. 분석 결과는
+                            <strong>정상 / 주의 / 위험</strong> 단계로 제공되며,
+                            상세 지표와 그래프를 통해 상태를 한눈에 확인할 수 있습니다.
+                        </p>
+                    </div>
+
+                    <!-- 6 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 자동차 탐지 기준 <strong>1초</strong>는 무슨 의미인가요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 고장탐지 모델은 <strong>1초 길이의 .wav 엔진 소리</strong>를 학습하였기 때문에,
+                            실제 분석 시에도 녹음된 소리를 1초 단위로 잘라서 이상 여부를 판단합니다.
+                            긴 녹음 파일의 경우 여러 1초 구간을 순차적으로 분석해
+                            전체 구간의 이상 패턴을 종합적으로 보여드립니다.
+                        </p>
+                    </div>
+
+                    <!-- 7 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 진단 결과에 “주의” 또는 “위험”으로 표시되는 기준이 궁금합니다.
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 각 센서에서 계산된 <strong>이상 탐지 점수</strong>가 내부 기준치를 넘으면
+                            “주의”로, 더 높은 구간을 초과하면 “위험”으로 표시됩니다.
+                            실제 정비 필요 여부는 반드시 정비소의 추가 점검을 통해 최종 판단해 주세요.
+                        </p>
+                    </div>
+
+                    <!-- 8 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 진단 결과와 로그 데이터를 내려받을 수 있나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 진단 결과 화면 하단의 <strong>리포트 내보내기</strong> 버튼을 통해
+                            PDF 리포트와 원본 로그(CSV)를 다운로드 할 수 있습니다.
+                            정비 이력 관리나 보험 청구 시 자료로 활용하실 수 있습니다.
+                        </p>
+                    </div>
+
+                    <!-- 9 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 서비스 이용 요금과 결제 방법이 궁금합니다.
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 기본 진단은 무료로 제공되며,
+                            고급 기능(상세 리포트, 장기 모니터링 등)은 월 구독 요금제로 이용하실 수 있습니다.
+                            결제는 신용/체크카드 및 주요 간편결제(카카오페이, 네이버페이 등)를 지원합니다.
+                        </p>
+                    </div>
+
+                    <!-- 10 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 진단 결과를 바탕으로 정비소 예약도 가능한가요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 제휴 정비소의 경우 진단 결과 화면에서
+                            <strong>정비소 예약하기</strong> 버튼을 통해 바로 예약을 진행할 수 있습니다.
+                            제휴 점검소 목록은 앱 내 <strong>정비소 찾기</strong> 메뉴에서 확인해 주세요.
+                        </p>
+                    </div>
+
+                    <!-- 11 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 1대1 문의는 어디에서 남길 수 있나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 상단 메뉴 또는 메인 화면의 <strong>고객센터 &gt; 1대1 문의하기</strong>를 선택하시면
+                            문의 유형과 내용을 작성해 전송하실 수 있습니다.
+                            접수된 문의는 보통 영업일 기준 <strong>1~2일 이내</strong>에 답변드립니다.
+                        </p>
+                    </div>
+
+                    <!-- 12 -->
+                    <div class="testimonial-card faq-item">
+                        <p class="testimonial-text testimonial-question">
+                            <strong>Q.</strong> 서비스 탈퇴 및 내 차량 데이터 삭제는 어떻게 하나요?
+                        </p>
+                        <p class="testimonial-text testimonial-answer" style="display:none;">
+                            <strong>A.</strong> 마이페이지 &gt; <strong>개인정보 관리</strong> 메뉴에서
+                            서비스 탈퇴 및 차량·진단 기록 삭제 요청을 하실 수 있습니다.
+                            삭제 완료 후에는 데이터 복구가 불가능하니,
+                            필요한 리포트는 미리 저장해 두시길 권장드립니다.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 탭 2: 1대1 상담 ====== -->
+            <!-- ★ 여기 전체를 tab-pane으로 감싸 줌 -->
+            <div class="tab-pane" id="inquiry-tab">
+    <div class="contact-grid">
+        <!-- ★ div 대신 form 으로 변경 -->
+        <form class="contact-form"
+              method="post"
+              action="{{ url_for('main.cs_page') }}">
+
+            <div class="form-group">
+                <input type="text"
+                       name="name"
+                       placeholder="Your Name"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <input type="email"
+                       name="email"
+                       placeholder="Your Email"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <input type="text"
+                       name="subject"
+                       placeholder="Subject"
+                       required>
+            </div>
+
+            <div class="form-group">
+                <textarea name="message"
+                          placeholder="Your Message"
+                          rows="4"
+                          required></textarea>
+            </div>
+
+            <!-- ★ 버튼에 type="submit" 추가 -->
+            <button type="submit" class="submit-btn">Send Message</button>
+        </form>
+
+        <div class="contact-info">        
+                        <div class="contact-item">
+                            <div class="contact-icon">📍</div>
+                            <div class="contact-details">
+                                <h4>Location</h4>
+                                <p>서울 영등포구 영등포동3가 8-1</p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">📧</div>
+                            <div class="contact-details">
+                                <h4>Email</h4>
+                                <p>qorgidskan@naver.com</p>
+                            </div>
+                        </div>
+                        <div class="contact-item">
+                            <div class="contact-icon">📞</div>
+                            <div class="contact-details">
+                                <h4>Phone</h4>
+                                <p>+82 (010)6658-8235</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- tab-pane 끝 -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// FAQ 카드 Q/A 토글
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".faq-item").forEach(card => {
+        const question = card.querySelector(".testimonial-question");
+        const answer   = card.querySelector(".testimonial-answer");
+        if (!question || !answer) return;
+
+        card.addEventListener("click", () => {
+            const isVisible = answer.style.display === "block";
+            answer.style.display = isVisible ? "none" : "block";
+        });
+    });
+});
+</script>
+{% endblock %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-area">
+      {% for category, msg in messages %}
+        <div class="flash flash-{{ category }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}

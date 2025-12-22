@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block title %}정비소 로드맵 - 자동차 소음 이상 탐지{% endblock %}
+{% block body_class %}page-md{% endblock %}
+
+{% block content %}
+
+<div class="content-section active" id="about">
+    <div class="section-header-small">
+        <div class="small-logo">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}"
+                 alt="car diagnostics logo"
+                 class="small-logo-img">
+        </div>
+        <div class="small-brand">
+            <h3>Car_Anomaly Detection</h3>
+            <p>정비소 로드맵</p>
+        </div>
+    </div>
+
+    <a class="back-btn" href="{{ url_for('main.index') }}">← Back to Menu</a>
+
+    <!-- 로드맵 섹션 -->
+    <section id="map-section"
+         style="display:flex; gap:10px; flex-wrap:wrap;
+                height:auto; min-height:500px;
+                margin-top: 90px;">
+        <!-- 카드 영역 -->
+        <div id="main-container" style="display: flex; flex-direction: column; width: 100%;">
+
+            <div id="content-wrapper" style="display: flex; gap: 20px;">
+                <div id="map"
+     style="width:780px; height:520px;  
+            min-width:320px; min-height:840px;
+            border:2px solid #ffffff;   
+            border-radius:6px; position:relative;
+            resize:both; overflow:hidden;">
+                    <div id="gps-btn" class="gps-btn" title="내 위치"></div>
+                </div>
+
+                <div id="cards-panel" style="min-width:280px; display:flex; flex-direction:column; gap:5px; flex-grow:1;">
+
+                    <!-- 카테고리 & 검색 -->
+                    <div id="search-controls" style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+
+                        <div id="category-container" style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <div class="category-card active" data-cat="전체">서울</div>
+                            <div class="category-card" data-cat="자동차정비">자동차 정비소</div>
+                    
+                        </div>
+
+                        <input type="text" id="search-input" placeholder="지역 또는 상호명 검색"
+                               style="padding:4px 6px; font-size:12px; width:180px; border-radius:4px; border:1px solid #888;">
+                    </div>
+
+                    <div id="card-wrapper" style="flex:1; display:flex; flex-direction:column; justify-content:space-between; min-height: 300px;">
+                        <div id="card-container"
+                             style="display:grid; grid-template-columns:repeat(1,1fr); grid-auto-rows:auto; gap:8px; overflow:auto; flex-grow:1; position:relative;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="page-buttons" style="display:flex; justify-content:center; gap:5px; margin-top:10px; width: 100%;"></div>
+        </div>
+    </section>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Kakao 지도 JS SDK (네 앱키로 교체되어 있음) -->
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=01e476af80699b34f0439dca2b688ef5&libraries=services"></script>
+
+<script>
+// ===================== 전역 변수 =====================
+let map;
+let places;
+let markers = [];
+let currentPosition = null;          // 내 위치
+let currentKeyword = "자동차 정비소"; // 기본 검색어
+let currentCategory = "전체";
+
+let currentPlaces = [];              // ★ 현재 검색 결과 전체
+let currentListPage = 1;             // ★ 오른쪽 리스트 현재 페이지
+const ITEMS_PER_PAGE = 7;            // ★ 페이지당 7개
+
+// ===================== 지도 초기화 =====================
+function initMap() {
+    const mapContainer = document.getElementById('map');
+
+    const defaultCenter = new kakao.maps.LatLng(37.5665, 126.9780); // 서울 시청 근처
+    const mapOption = {
+        center: defaultCenter,
+        level: 5
+    };
+
+    map = new kakao.maps.Map(mapContainer, mapOption);
+    places = new kakao.maps.services.Places();
+
+    // ---------- 내 위치 가져오기 ----------
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            currentPosition = new kakao.maps.LatLng(lat, lng);
+
+            // 지도를 내 위치로 이동
+            map.setCenter(currentPosition);
+
+            // ★ 내 위치 마커 (빨간색 이미지 사용)
+            const imageSrc =
+                'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png';
+            const imageSize = new kakao.maps.Size(40, 49);           // 이미지 사이즈
+            const imageOption = {
+                offset: new kakao.maps.Point(27, 69)                  // 마커의 기준점
+            };
+
+            const myMarkerImage = new kakao.maps.MarkerImage(
+                imageSrc,
+                imageSize,
+                imageOption
+            );
+
+            const myMarker = new kakao.maps.Marker({
+                position: currentPosition,
+                image: myMarkerImage,   // ← 빨간 마커 적용
+                map: map
+            });
+
+            // 현재 위치 기준으로 정비소 검색
+            searchPlaces();
+        }, (err) => {
+            console.warn("위치 정보를 가져올 수 없습니다:", err);
+            // 위치 실패 시 기본 중심(서울) 기준으로 검색
+            searchPlaces();
+        });
+    } else {
+        console.warn("이 브라우저는 geolocation을 지원하지 않습니다.");
+        searchPlaces();
+    }
+
+    // ---------- GPS 버튼: 내 위치로 이동 ----------
+    const gpsBtn = document.getElementById("gps-btn");
+    if (gpsBtn) {
+        gpsBtn.addEventListener("click", () => {
+            if (currentPosition) {
+                map.setCenter(currentPosition);
+                map.setLevel(5);
+            } else {
+                alert("위치 정보를 아직 가져오지 못했습니다.");
+            }
+        });
+    }
+
+    // 나머지 UI 이벤트 (카테고리, 검색 등)
+    initUIEvents();
+}
+
+// ===================== UI 이벤트 바인딩 =====================
+function initUIEvents() {
+    // 카테고리 클릭
+    document.querySelectorAll(".category-card").forEach(card => {
+        card.addEventListener("click", () => {
+            document.querySelectorAll(".category-card").forEach(c => c.classList.remove("active"));
+            card.classList.add("active");
+
+            currentCategory = card.dataset.cat; // "전체" / "자동차정비" / "서비스센터"
+            searchPlaces();
+        });
+    });
+
+    // 검색 입력 엔터 처리
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) {
+        searchInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                searchPlaces();
+            }
+        });
+    }
+}
+
+// ===================== 장소 검색 =====================
+function searchPlaces() {
+    if (!places) return;
+
+    const searchInput = document.getElementById("search-input");
+    const userQuery = searchInput ? searchInput.value.trim() : "";
+
+    // 기본 키워드 구성
+    let keyword = "자동차 정비소";
+    if (currentCategory === "서비스센터") {
+        keyword = "자동차 서비스센터";
+    }
+
+    // 사용자가 지역/상호를 입력했다면 키워드에 붙이기
+    if (userQuery) {
+        keyword = keyword + " " + userQuery;
+    }
+    currentKeyword = keyword;
+
+    const options = {
+        // 위치가 있으면 반경 검색, 없으면 전국 검색
+        location: currentPosition || undefined,
+        radius: currentPosition ? 5000 : undefined, // 5km
+        page: 1 // Kakao API는 1페이지만 가져오고, 오른쪽 리스트는 우리가 7개씩 나눔
+    };
+
+    places.keywordSearch(keyword, placesSearchCB, options);
+}
+
+// ===================== 검색 콜백 =====================
+function placesSearchCB(data, status, pagination) {
+    if (status === kakao.maps.services.Status.OK) {
+        // Kakao가 준 결과 전체를 저장하고 1페이지부터 렌더링
+        currentPlaces = data;
+        currentListPage = 1;
+        renderPlacesPage();
+    } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+        currentPlaces = [];
+        currentListPage = 1;
+        clearMarkers();
+        renderCardList([]);
+        const container = document.getElementById("page-buttons");
+        if (container) container.innerHTML = "";
+        alert("검색 결과가 없습니다.");
+    } else {
+        console.error("검색 중 오류 발생:", status);
+    }
+}
+
+// ===================== 현재 페이지 데이터 렌더링 =====================
+function renderPlacesPage() {
+    const total = currentPlaces.length;
+    const totalPages = Math.ceil(total / ITEMS_PER_PAGE) || 1;
+
+    if (currentListPage > totalPages) {
+        currentListPage = totalPages;
+    }
+    if (currentListPage < 1) {
+        currentListPage = 1;
+    }
+
+    const start = (currentListPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    const pageData = currentPlaces.slice(start, end);
+
+    // 지도 + 카드 렌더링
+    displayPlaces(pageData);
+    // 페이지 버튼 렌더링
+    displayPagination(totalPages);
+}
+
+// ===================== 마커/카드 렌더링 =====================
+function clearMarkers() {
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+}
+
+function displayPlaces(placesData) {
+    const bounds = new kakao.maps.LatLngBounds();
+
+    clearMarkers();
+    renderCardList(placesData);
+
+    placesData.forEach((place, idx) => {
+        const position = new kakao.maps.LatLng(place.y, place.x);
+        bounds.extend(position);
+
+        const marker = new kakao.maps.Marker({
+            map: map,
+            position: position
+        });
+        markers.push(marker);
+
+        // ⬆️ 마커만 만들고, 클릭 이벤트(InfoWindow)는 더 이상 붙이지 않음
+    });
+
+    if (!bounds.isEmpty()) {
+        map.setBounds(bounds);
+    }
+}
+
+
+function renderCardList(placesData) {
+    const container = document.getElementById("card-container");
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    if (!placesData || placesData.length === 0) {
+        container.innerHTML = '<div style="padding:10px;font-size:13px;color:#ccc;">검색 결과가 없습니다.</div>';
+        return;
+    }
+
+    placesData.forEach((place, idx) => {
+        const card = document.createElement("div");
+        card.style.padding = "8px 10px";
+        card.style.borderRadius = "10px";
+        card.style.background = "rgba(0,0,0,0.3)";
+        card.style.border = "1px solid rgba(255,255,255,0.1)";
+        card.style.cursor = "pointer";
+        card.style.fontSize = "12px";
+        card.style.display = "flex";
+        card.style.flexDirection = "column";
+        card.style.gap = "4px";
+
+        card.innerHTML = `
+            <div style="font-weight:bold; color:#00f0ff; font-size:13px;">
+                ${idx + 1}. ${place.place_name}
+            </div>
+            <div style="color:#ddd;">${place.road_address_name || place.address_name || ""}</div>
+            <div style="color:#aaa;">${place.phone || ""}</div>
+            <div style="color:#888; font-size:11px;">카테고리: ${place.category_name || ""}</div>
+        `;
+
+        // 카드 클릭 시 지도 중심/레벨 이동
+        card.addEventListener("click", () => {
+            const position = new kakao.maps.LatLng(place.y, place.x);
+            map.setCenter(position);
+            map.setLevel(4);
+        });
+
+        container.appendChild(card);
+    });
+}
+
+// ===================== 페이지네이션 =====================
+// totalPages: currentPlaces 기준으로 계산된 총 페이지 수
+function displayPagination(totalPages) {
+    const container = document.getElementById("page-buttons");
+    if (!container) return;
+
+    container.innerHTML = "";
+    if (totalPages <= 1) return;  // 한 페이지면 버튼 안 만듦
+
+    const frag = document.createDocumentFragment();
+
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        btn.style.padding = "4px 8px";
+        btn.style.borderRadius = "6px";
+        btn.style.border = "1px solid rgba(255,255,255,0.5)";
+        btn.style.background = (i === currentListPage)
+            ? "rgba(255,255,255,0.25)"   // 선택된 페이지는 살짝 밝게
+            : "rgba(0,0,0,0.4)";
+        btn.style.color = "#fff";
+        btn.style.fontSize = "11px";
+        btn.style.cursor = "pointer";
+        btn.style.margin = "0 2px";
+
+        btn.addEventListener("click", () => {
+            currentListPage = i;
+            renderPlacesPage();  // 같은 데이터에서 페이지만 바꿔서 다시 렌더링
+        });
+
+        frag.appendChild(btn);
+    }
+
+    container.appendChild(frag);
+}
+
+// ===================== 초기 실행 =====================
+window.addEventListener("load", () => {
+    // 템플릿 기본 로딩 스크린은 기존 JS에서 처리하고,
+    // 지도는 여기서 초기화
+    if (window.kakao && kakao.maps) {
+        initMap();
+    } else {
+        console.error("Kakao 지도 스크립트 로드 실패");
+    }
+});
+</script>
+{% endblock %}
+

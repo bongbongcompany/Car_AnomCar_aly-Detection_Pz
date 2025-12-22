@@ -1,0 +1,832 @@
+{% extends "base.html" %}
+
+{% block title %}엔진 소리 녹음 - 자동차 소음 이상 탐지{% endblock %}
+{% block body_class %}page-md{% endblock %}
+
+{% block content %}
+
+<style>
+/* 기본은 정지 */
+.animated-logo {
+    animation-play-state: paused;
+}
+
+/* 시크릿 키 통과 후에만 실행 */
+body.secret-unlocked .animated-logo {
+    animation-play-state: running;
+}
+
+/* 전체 화면을 덮는 검은 가림막 */
+.secret-overlay {
+    position: fixed;
+    inset: 0;                       /* top/right/bottom/left: 0; */
+    background: rgba(2, 4, 12, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;                  /* 맨 앞에 */
+}
+
+/* 가운데 서브 창 */
+.secret-modal {
+    position: relative;
+    max-width: 540px;
+    width: 90%;
+    padding: 24px 24px 20px;
+    border-radius: 24px;
+    background: transparent;        /* 안쪽도 공백 느낌 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+/* 로고 이미지 */
+.secret-img {
+    max-width: 1400px;
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 입력 박스 영역 */
+.secret-input-wrap {
+    width: 100%;
+    text-align: center;
+    color: #f5f7ff;
+    font-size: 14px;
+}
+
+.secret-title {
+    margin-bottom: 8px;
+    color: #dce5ff;
+}
+
+.secret-input {
+    width: 100%;
+    max-width: 260px;
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(10, 14, 40, 0.9);
+    color: #f5f7ff;
+    outline: none;
+    font-size: 14px;
+}
+
+.secret-input:focus {
+    border-color: #00e5ff;
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
+}
+
+.secret-btn {
+    margin-top: 10px;
+    padding: 8px 26px;
+    border-radius: 999px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(90deg, #00e5ff, #7f5dff);
+    color: #020615;
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.6);
+}
+
+.secret-btn:hover {
+    transform: translateY(-1px);
+}
+
+.secret-error {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #ff6b6b;
+}
+
+:root {
+    --md-content-width: 1000px;
+}
+
+/* ===================== 1. 큰 녹음 카드 + 파형 이펙트 ===================== */
+
+/* 큰 카드 자체를 버튼으로 사용 */
+.em-rec-btn {
+    width: 640px;           /* 정사각형 */
+    height: 640px;
+    max-width: 100%;
+    margin: 32px auto 20px;
+    padding: 0;
+
+    /* 🔹 동그란 버튼으로 */
+    border-radius: 50%;
+    border: none;
+
+    /* 🔹 카드 배경/테두리/그림자 모두 제거 (공백처럼) */
+    background: transparent;
+    box-shadow: none;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+
+    overflow: hidden;       /* 파형이 원 밖으로 못 나가게 */
+
+    color: #f5f7ff;
+    outline: none;
+
+    transition:
+        transform 0.22s ease,
+        opacity 0.2s ease;
+}
+
+.em-rec-btn:hover:not(:disabled) {
+    transform: scale(1.03);   /* 살짝 커지는 효과만 남김 */
+}
+
+.em-rec-btn:disabled {
+    cursor: default;
+    opacity: 0.6;
+    transform: none;
+}
+
+.wave-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    /* 🔹 버튼 중심 기준으로 정중앙 배치 */
+    transform: translate(-50%, -50%);
+
+    /* 🔹 원 안쪽만 쓰도록 살짝 작게 */
+    width: 90%;
+    height: 90%;
+
+    pointer-events: none;
+}
+
+.wave-layer {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+    opacity: 0;
+    animation: wavePulse 7s linear infinite;
+    filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.6));
+}
+
+/* 레이어별 시작 시간만 조금씩 다르게 (10장) */
+.wave-1  { animation-delay: 0s;   }
+.wave-2  { animation-delay: 0.5s; }
+.wave-3  { animation-delay: 1.0s; }
+.wave-4  { animation-delay: 1.5s; }
+.wave-5  { animation-delay: 2.0s; }
+.wave-6  { animation-delay: 2.5s; }
+.wave-7  { animation-delay: 3.0s; }
+.wave-8  { animation-delay: 3.5s; }
+.wave-9  { animation-delay: 4.0s; }
+.wave-10 { animation-delay: 4.5s; }
+
+/* 파형이 박스 안에서 퍼지면서 + 회전하면서 사라지는 애니메이션 */
+@keyframes wavePulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.9;
+    }
+    40% {
+        transform: translate(-50%, -50%) scale(0.75) rotate(120deg);
+        opacity: 0.7;
+    }
+    70% {
+        transform: translate(-50%, -50%) scale(0.95) rotate(240deg);
+        opacity: 0.25;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.0) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* 카드 안에 나타나는 "녹음 중단" 텍스트 (녹음 중에만) */
+.em-rec-label {
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 7px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 255, 255, 0.75);
+    background: rgba(2, 10, 25, 0.9);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #a00000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+/* 녹음 중일 때만 보이게 */
+.em-rec-btn.recording .em-rec-label {
+    opacity: 1;
+}
+
+/* 카드 아래 상태 텍스트 */
+.record-status {
+    text-align: center;
+    font-size: 13px;
+    color: #cdd5ff;
+    margin-bottom: 10px;
+}
+
+/* 로그(선택) */
+.em-log {
+    max-width: 720px;
+    margin: 0 auto 24px;
+    font-size: 12px;
+    color: #9aa4ff;
+    white-space: pre-line;
+}
+
+/* 반응형 */
+@media (max-width: 900px) {
+    .em-rec-btn {
+        max-width: 100%;
+        margin: 24px 12px 16px;
+        height: 360px;
+        border-radius: 24px;
+    }
+
+    .wave-container {
+        inset: 0;
+    }
+}
+
+/* ===================== 2. 진단 결과 박스 ===================== */
+
+.md-result-box {
+    width: 100%;
+    max-width: var(--md-content-width);
+    margin: 24px auto 40px;
+    border-radius: 18px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.55),
+        0 0 24px rgba(255, 255, 255, 0.918);
+    padding: 18px 22px;
+    color: #f5f7ff;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+.md-result-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.md-result-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.md-result-text {
+    font-size: 18px;
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+.md-result-f1-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+}
+
+.md-result-f1-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+}
+
+.md-result-f1-box {
+    flex: 1;
+    background: rgba(5, 10, 30, 0.9);
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+    display: flex;
+}
+
+.md-result-f1-img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+}
+
+@media (max-width: 768px) {
+    .md-result-box {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* ===================== 3. MD 시각화 패널 ===================== */
+
+.md-viz-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.md-viz-panel {
+    display: block;
+    width: 100%;
+    max-width: var(--md-content-width);
+    margin: 24px auto 0;
+    border-radius: 18px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.55),
+        0 0 24px rgba(255, 255, 255, 0);
+    overflow: hidden;
+    color: #f5f7ff;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.md-viz-panel.collapsed {
+    max-height: 48px;
+    opacity: 0.85;
+    overflow: hidden;
+}
+
+.md-viz-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-height: 10px;
+    padding: 18px 22px;
+    cursor: pointer;
+}
+
+.md-viz-pin {
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    transform-origin: center;
+    transition: transform 0.25s ease, filter 0.25s ease;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0));
+    margin-right: 8px;
+}
+
+.md-viz-panel.collapsed .md-viz-pin {
+    transform: rotate(-30deg);
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+
+.md-viz-center {
+    flex: 1;
+    text-align: center;
+}
+
+.md-viz-right {
+    white-space: nowrap;
+}
+
+.md-viz-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.md-viz-sub {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.md-viz-body {
+    padding: 10px 18px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.md-viz-row {
+    display: block;
+    margin-bottom: 14px;
+}
+
+.md-viz-block-full {
+    width: 100%;
+}
+
+.md-viz-block-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.md-viz-canvas-box {
+    background: rgba(5, 10, 30, 0.9);
+    border-radius: 12px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
+    min-height: 240px;
+}
+</style>
+<!-- 🔒 비밀키 입력 오버레이 -->
+<div id="secret-overlay" class="secret-overlay">
+  <div class="secret-modal">
+    <img src="{{ url_for('static', filename='images/car_logo3.png') }}"
+         alt="secret gate"
+         class="secret-img">
+
+    <div class="secret-input-wrap">
+      <p class="secret-title">접속을 위한 비밀 키를 입력해 주세요.</p>
+      <input type="password"
+             id="secret-input"
+             class="secret-input"
+             placeholder="Secret key" />
+
+      <button type="button"
+              id="secret-submit"
+              class="secret-btn">
+        확인
+      </button>
+
+      <p id="secret-error" class="secret-error" style="display:none;">
+        비밀 키가 올바르지 않습니다.
+      </p>
+    </div>
+  </div>
+</div>
+<div class="content-section active" id="em-record">
+    <div class="section-header-small">
+        <div class="small-logo2">
+            <img src="{{ url_for('static', filename='images/car_logo3.png') }}"
+                 alt="Engine Logo"
+                 class="header-engine-logo animated-logo">
+        </div>
+        <div class="small-brand">
+            <h3>Car_AnomCar_aly Detection</h3>
+            <p>계측 모드</p>
+        </div>
+    </div>
+
+    <a class="back-btn" href="{{ url_for('main.index') }}">← Back to Menu</a>
+
+    <div class="section-header">
+        <h2 class="section-title">Measurement Mode</h2>
+        <p class="section-subtitle">
+            음파 컨테이너를 누르면 실시간 진단을 시작합니다.
+        </p>
+    </div>
+
+    <!-- 🔹 커다란 카드 = 버튼 (기능 그대로 유지) -->
+    <button type="button" class="em-rec-btn" id="em-rec-btn">
+        <div class="wave-container">
+            <!-- 파형용 이미지 10장 -->
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-1"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-2"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-3"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-4"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-5"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-6"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-7"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-8"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-9"  alt="">
+            <img src="{{ url_for('static', filename='images/car_logo5.png') }}" class="wave-layer wave-10" alt="">
+        </div>
+
+        <!-- 녹음 중일 때만 보이는 라벨 -->
+        <div class="em-rec-label" id="em-rec-label">녹음 중단</div>
+    </button>
+
+    <!-- 안내 문구 -->
+    <div id="em-status" class="record-status">
+        카드를 클릭하면 녹음을 시작합니다.
+    </div>
+
+    <div id="em-log" class="em-log"></div>
+
+    <!-- ====== VISUALIZATION 패널 ====== -->
+    <div style="margin-top:10px; text-align:center;">
+        <div class="intro-cta-group" style="display:none;">
+            <button id="md-start-btn" class="intro-cta-primary">분석하기</button>
+        </div>
+
+        <div id="md-viz-panel" class="md-viz-panel collapsed">
+            <div class="md-viz-header" id="md-viz-header">
+                <button type="button"
+                        class="md-viz-pin"
+                        id="md-viz-pin"
+                        aria-label="시각화 열기/닫기">
+                    📌
+                </button>
+
+                <div class="md-viz-center">
+                    <div class="md-viz-title">VISUALIZATION</div>
+                    <div class="md-viz-sub">
+                        Waveform / Spectrogram / FFT magnitude 시각화 결과확인
+                    </div>
+                </div>
+
+                <div class="md-viz-right md-viz-sub">
+                    클릭해서 열고 닫기
+                </div>
+            </div>
+
+            <div class="md-viz-body">
+                <div class="md-viz-row">
+                    <div class="md-viz-block-full">
+                        <div class="md-viz-block-title">Waveform (Time domain)</div>
+                        <div class="md-viz-canvas-box">
+                            <img id="md-img-waveform" class="md-viz-img" alt="Waveform">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md-viz-row">
+                    <div class="md-viz-block-full">
+                        <div class="md-viz-block-title">Spectrogram (Mel)</div>
+                        <div class="md-viz-canvas-box">
+                            <img id="md-img-mel" class="md-viz-img" alt="Mel spectrogram">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="md-viz-row">
+                    <div class="md-viz-block-full">
+                        <div class="md-viz-block-title">FFT magnitude</div>
+                        <div class="md-viz-canvas-box">
+                            <img id="md-img-fft" class="md-viz-img" alt="FFT magnitude">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 진단 결과 박스 -->
+    <div id="md-result-box" class="md-result-box" style="display:none;">
+        <div class="md-result-left">
+            <h3 class="md-result-title">진단 결과</h3>
+            <div class="md-result-text-wrap">
+                <p id="md-result-text" class="md-result-text"></p>
+            </div>
+        </div>
+
+        <div class="md-result-f1-wrap">
+            <div class="md-result-f1-title">F1 score (클래스별)</div>
+            <div class="md-result-f1-box">
+                <img id="md-img-f1" class="md-result-f1-img" alt="F1 score">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("secret-overlay");
+  const input   = document.getElementById("secret-input");
+  const submit  = document.getElementById("secret-submit");
+  const errorEl = document.getElementById("secret-error");
+
+  if (!overlay || !input || !submit) return;
+
+  // 🔑 원하는 비밀 키 값
+  const SECRET_KEY = "1234";
+
+  // 🔓 시크릿 통과 후 실행할 애니메이션들
+  let introStarted = false;
+  function startIntroAnimations() {
+    if (introStarted) return;
+    introStarted = true;
+
+    // 로고 애니메이션 풀기
+    document.body.classList.add("secret-unlocked");
+
+    // 숫자 올라가는 애니메이션 시작
+    if (typeof animateStats === "function") {
+      animateStats();
+    }
+  }
+
+  function tryUnlock() {
+    const value = input.value.trim();
+
+    if (value === SECRET_KEY) {
+      // 성공: 오버레이 숨기고 애니메이션 시작
+      overlay.style.display = "none";
+      startIntroAnimations();
+    } else {
+      // 실패: 에러 메시지 표시
+      errorEl.style.display = "block";
+    }
+  }
+
+  submit.addEventListener("click", tryUnlock);
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      tryUnlock();
+    }
+  });
+
+  input.focus();
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    // ===== 시각화 패널 토글 =====
+    const mdVizPanel  = document.getElementById('md-viz-panel');
+    const mdVizHeader = document.getElementById('md-viz-header');
+    if (mdVizHeader && mdVizPanel) {
+        mdVizHeader.addEventListener('click', () => {
+            mdVizPanel.classList.toggle('collapsed');
+        });
+    }
+
+    // ===== 이미지 src 업데이트 (md.html 코드 재사용) =====
+    function updateMdImages(images) {
+        if (!images) return;
+        const ts = Date.now();
+
+        if (images.waveform) {
+            const el = document.getElementById('md-img-waveform');
+            if (el) el.src = images.waveform + '?t=' + ts;
+        }
+        if (images.mel) {
+            const el = document.getElementById('md-img-mel');
+            if (el) el.src = images.mel + '?t=' + ts;
+        }
+        if (images.fft) {
+            const el = document.getElementById('md-img-fft');
+            if (el) el.src = images.fft + '?t=' + ts;
+        }
+        if (images.f1) {
+            const el = document.getElementById('md-img-f1');
+            if (el) el.src = images.f1 + '?t=' + ts;
+        }
+
+        if (mdVizPanel) {
+            mdVizPanel.classList.remove('collapsed');
+        }
+    }
+
+    // ===== em 페이지용: 큰 카드 녹음/업로드 =====
+    const recBtn   = document.getElementById('em-rec-btn');
+    const statusEl = document.getElementById('em-status');
+    const logEl    = document.getElementById('em-log');
+
+    let mediaRecorder = null;
+    let audioChunks   = [];
+    let isRecording   = false;
+    let cooldownTimer = null;
+
+    function log(msg) {
+        if (!logEl) return;
+        const now = new Date().toLocaleTimeString();
+        logEl.textContent = `[${now}] ${msg}\n` + logEl.textContent;
+    }
+
+    function setUIRecording(running) {
+        isRecording = running;
+
+        if (running) {
+            recBtn.classList.add('recording');
+            statusEl.textContent = "녹음 중입니다... 카드를 다시 클릭하면 녹음이 중단됩니다.";
+        } else {
+            recBtn.classList.remove('recording');
+        }
+    }
+
+    async function startRecording() {
+        if (isRecording || recBtn.disabled) return;
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("이 브라우저에서는 마이크 녹음을 지원하지 않습니다.");
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    audioChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = handleStop;
+            mediaRecorder.start();
+            setUIRecording(true);
+            log("녹음 시작");
+        } catch (err) {
+            console.error(err);
+            alert("마이크 권한을 허용해 주세요.");
+        }
+    }
+
+    function stopRecording() {
+        if (!isRecording || !mediaRecorder) return;
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    }
+
+    async function handleStop() {
+        setUIRecording(false);
+        log("녹음 종료, 서버로 전송 중...");
+
+        const blob = new Blob(audioChunks, { type: "audio/webm" });
+
+        const fd = new FormData();
+        fd.append("state", "idle");            // 필요하면 braking/startup 으로 변경
+        fd.append("audio", blob, "recording.webm");
+
+        try {
+            const res = await fetch("/md/predict", {
+                method: "POST",
+                body: fd
+            });
+
+            if (!res.ok) {
+                throw new Error("Upload failed: " + res.status);
+            }
+
+            const data = await res.json();
+            log("업로드 및 분석 완료");
+
+            if (data.ok) {
+                const r = data.result;
+
+                if (r.images) {
+                    updateMdImages(r.images);
+                }
+
+                let msg = `상태: ${r.state}\n결과: ${r.label}`;
+                if (typeof r.score === 'number') {
+                    msg += `\n점수(score): ${r.score.toFixed(3)}`;
+                }
+
+                const box    = document.getElementById('md-result-box');
+                const textEl = document.getElementById('md-result-text');
+                if (box && textEl) {
+                    textEl.textContent = msg;
+                    box.style.display = 'grid';
+                }
+
+                statusEl.textContent = "분석이 완료되었습니다. 30초 후에 다시 녹음할 수 있습니다.";
+            } else {
+                statusEl.textContent = "추론 실패: " + (data.error || 'unknown error');
+            }
+
+            recBtn.disabled = true;
+            if (cooldownTimer) clearTimeout(cooldownTimer);
+            cooldownTimer = setTimeout(() => {
+                recBtn.disabled = false;
+                statusEl.textContent = "카드를 클릭하면 녹음을 시작합니다.";
+            }, 30000);
+
+        } catch (err) {
+            console.error(err);
+            log("업로드/분석 실패: " + err.message);
+            alert("서버로 파일을 전송하는 중 에러가 발생했습니다.");
+            statusEl.textContent = "에러가 발생했습니다. 다시 시도해 주세요.";
+        }
+    }
+
+    if (recBtn) {
+        recBtn.addEventListener("click", () => {
+            if (recBtn.disabled) return;
+            if (!isRecording) {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}
